@@ -1,0 +1,39 @@
+{
+  "manifestVersion": 1,
+  "id": "os.nammu.whatsapp",
+  "name": "WhatsApp",
+  "version": "1.0.0",
+  "runtime": "integration",
+  "entry": "app/index.html",
+  "minNammuVersion": "0.8.4",
+  "dataSchemaVersion": 1,
+  "permissions": [
+    "integration.web-surfaces",
+    "migration.legacy-storage",
+    "migration.integration-profile"
+  ],
+  "legacyStorageKeys": ["nammu_whatsapp_tabs", "nammu_whatsapp_themes"],
+  "publisher": "nammu-official",
+  "publisherKeyId": "nammu-official-2026-09",
+  "capabilities": [
+    {
+      "type": "web-surface",
+      "name": "whatsapp-web",
+      "navigation": {
+        "mode": "approved-origins",
+        "origins": ["https://web.whatsapp.com"]
+      },
+      "maxSurfaces": 8,
+      "maxPartitions": 8,
+      "persistentProfile": true
+    }
+  ],
+  "integrationProfileMigrations": [
+    {
+      "id": "whatsapp-core-v1",
+      "version": 1,
+      "capability": "whatsapp-web",
+      "profileKey": "whatsapp"
+    }
+  ]
+}
