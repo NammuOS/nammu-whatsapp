@@ -4,6 +4,7 @@ export interface WhatsAppAccountTab { id: string; name: string; phone?: string; 
 export interface WhatsAppTheme { id: string; name: string; primaryColor: string; backgroundColor: string; bubbleColor: string; }
 export const WHATSAPP_TABS_KEY = 'nammu_whatsapp_tabs';
 export const WHATSAPP_THEMES_KEY = 'nammu_whatsapp_themes';
+export const WHATSAPP_PROFILE_MIGRATION_KEY = 'nammu_whatsapp_profile_migration_v1';
 export const MAX_WHATSAPP_ACCOUNTS = 8;
 export const WHATSAPP_WEB_URL = 'https://web.whatsapp.com/';
 export const DEFAULT_WHATSAPP_THEMES: WhatsAppTheme[] = [
@@ -37,9 +38,19 @@ export function normalizeWhatsAppThemes(value: unknown): WhatsAppTheme[] { const
 
 export async function initializeWhatsAppStorage(app: NammuApp): Promise<{ tabs: WhatsAppAccountTab[]; themes: WhatsAppTheme[] }> {
   const settings = await app.settings.getAll();
-  const [legacyTabs, legacyThemes, discovered] = await Promise.all([
-    app.migration.readLegacyStorage(WHATSAPP_TABS_KEY), app.migration.readLegacyStorage(WHATSAPP_THEMES_KEY), app.migration.discoverIntegrationProfiles({ migrationId: 'whatsapp-core-v1' }),
+  const [legacyTabs, legacyThemes] = await Promise.all([
+    app.migration.readLegacyStorage(WHATSAPP_TABS_KEY), app.migration.readLegacyStorage(WHATSAPP_THEMES_KEY),
   ]);
+  // v1.0.0 completed adoption before persisting package metadata. Existing
+  // package metadata plus a completed Core legacy-storage read is therefore a
+  // safe upgrade signal. Never rediscover historical profiles after that point:
+  // a user may have closed an account shortcut or an old Core build may later
+  // recreate a legacy directory, neither of which authorizes another adoption.
+  const profileMigrationComplete = settings[WHATSAPP_PROFILE_MIGRATION_KEY] === 'complete'
+    || (legacyTabs === null && settings[WHATSAPP_TABS_KEY] !== undefined);
+  const discovered = profileMigrationComplete
+    ? { profileIds: [] }
+    : await app.migration.discoverIntegrationProfiles({ migrationId: 'whatsapp-core-v1' });
   const tabs = normalizeWhatsAppTabs(legacyTabs ?? settings[WHATSAPP_TABS_KEY]); const known = new Set(tabs.map((tab) => tab.id));
   const recovered = discovered.profileIds.filter((id) => ACCOUNT_ID.test(id) && !known.has(id)).map((id, index): WhatsAppAccountTab => ({ id, name: `Account ${tabs.length + index + 1}`, color: '#53bdeb', isMuted: false, themeId: 'default-dark', url: WHATSAPP_WEB_URL }));
   const merged = normalizeWhatsAppTabs([...tabs, ...recovered]); const themes = normalizeWhatsAppThemes(legacyThemes ?? settings[WHATSAPP_THEMES_KEY]);
@@ -47,6 +58,7 @@ export async function initializeWhatsAppStorage(app: NammuApp): Promise<{ tabs: 
     for (const tab of merged) await app.migration.adoptIntegrationProfile({ migrationId: 'whatsapp-core-v1', legacyProfileId: tab.id, partitionKey: tab.id });
     await app.settings.set(WHATSAPP_TABS_KEY, JSON.stringify(merged)); if (legacyTabs !== null) await app.migration.completeLegacyStorage(WHATSAPP_TABS_KEY);
   } else if (settings[WHATSAPP_TABS_KEY] === undefined) await app.settings.set(WHATSAPP_TABS_KEY, JSON.stringify(merged));
+  if (!profileMigrationComplete) await app.settings.set(WHATSAPP_PROFILE_MIGRATION_KEY, 'complete');
   if (legacyThemes !== null) { await app.settings.set(WHATSAPP_THEMES_KEY, JSON.stringify(themes)); await app.migration.completeLegacyStorage(WHATSAPP_THEMES_KEY); }
   else if (settings[WHATSAPP_THEMES_KEY] === undefined) await app.settings.set(WHATSAPP_THEMES_KEY, JSON.stringify(themes));
   return { tabs: merged, themes };

@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "os.nammu.whatsapp",
   "name": "WhatsApp",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "runtime": "integration",
   "entry": "app/index.html",
   "minNammuVersion": "0.8.4",
