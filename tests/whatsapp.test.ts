@@ -22,7 +22,7 @@ describe('Nammu WhatsApp package', () => {
   });
   it('does not rediscover or re-adopt profiles after v1.0.0 package metadata proves migration completed', async () => {
     let discovered = false; let adopted = false; const stored = JSON.stringify([tab('wa-account-a')]);
-    const app = { settings: { getAll: async () => ({ [WHATSAPP_TABS_KEY]: stored }), set: async () => ({ success: true }) }, migration: { readLegacyStorage: async () => null, discoverIntegrationProfiles: async () => { discovered = true; return { profileIds: ['wa-account-later'] }; }, adoptIntegrationProfile: async () => { adopted = true; return { status: 'adopted' as const }; }, completeLegacyStorage: async () => ({ completed: true }) } } as unknown as NammuApp;
+    const app = { settings: { getAll: async () => ({ [WHATSAPP_TABS_KEY]: stored }), set: async () => ({ success: true }) }, migration: { readLegacyStorage: async (key: string) => key === WHATSAPP_TABS_KEY ? JSON.stringify([tab('wa-account-stale')]) : null, discoverIntegrationProfiles: async () => { discovered = true; return { profileIds: ['wa-account-later'] }; }, adoptIntegrationProfile: async () => { adopted = true; return { status: 'adopted' as const }; }, completeLegacyStorage: async () => ({ completed: true }) } } as unknown as NammuApp;
     const result = await initializeWhatsAppStorage(app);
     expect(result.tabs.map((item) => item.id)).toEqual(['wa-account-a']); expect(discovered).toBe(false); expect(adopted).toBe(false);
   });

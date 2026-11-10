@@ -47,14 +47,14 @@ export async function initializeWhatsAppStorage(app: NammuApp): Promise<{ tabs: 
   // a user may have closed an account shortcut or an old Core build may later
   // recreate a legacy directory, neither of which authorizes another adoption.
   const profileMigrationComplete = settings[WHATSAPP_PROFILE_MIGRATION_KEY] === 'complete'
-    || (legacyTabs === null && settings[WHATSAPP_TABS_KEY] !== undefined);
+    || settings[WHATSAPP_TABS_KEY] !== undefined;
   const discovered = profileMigrationComplete
     ? { profileIds: [] }
     : await app.migration.discoverIntegrationProfiles({ migrationId: 'whatsapp-core-v1' });
-  const tabs = normalizeWhatsAppTabs(legacyTabs ?? settings[WHATSAPP_TABS_KEY]); const known = new Set(tabs.map((tab) => tab.id));
+  const tabs = normalizeWhatsAppTabs(profileMigrationComplete ? settings[WHATSAPP_TABS_KEY] : legacyTabs ?? settings[WHATSAPP_TABS_KEY]); const known = new Set(tabs.map((tab) => tab.id));
   const recovered = discovered.profileIds.filter((id) => ACCOUNT_ID.test(id) && !known.has(id)).map((id, index): WhatsAppAccountTab => ({ id, name: `Account ${tabs.length + index + 1}`, color: '#53bdeb', isMuted: false, themeId: 'default-dark', url: WHATSAPP_WEB_URL }));
   const merged = normalizeWhatsAppTabs([...tabs, ...recovered]); const themes = normalizeWhatsAppThemes(legacyThemes ?? settings[WHATSAPP_THEMES_KEY]);
-  if (legacyTabs !== null || recovered.length > 0) {
+  if (!profileMigrationComplete && (legacyTabs !== null || recovered.length > 0)) {
     for (const tab of merged) await app.migration.adoptIntegrationProfile({ migrationId: 'whatsapp-core-v1', legacyProfileId: tab.id, partitionKey: tab.id });
     await app.settings.set(WHATSAPP_TABS_KEY, JSON.stringify(merged)); if (legacyTabs !== null) await app.migration.completeLegacyStorage(WHATSAPP_TABS_KEY);
   } else if (settings[WHATSAPP_TABS_KEY] === undefined) await app.settings.set(WHATSAPP_TABS_KEY, JSON.stringify(merged));
